@@ -3,18 +3,14 @@ import numpy as np
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
+def compute_loss(predictions, y):
+    return np.mean((y - predictions) ** 2)
+
 class Neuron:
     def __init__(self, num_inputs):
         self.weights = np.random.randn(num_inputs)
         self.bias = np.random.randn()
         self.activation_func = sigmoid
-            
-    def bad_predict(self, x):
-        total_sum = 0
-        for index, _ in enumerate(x):
-            total_sum += x[index] * self.weights[index]
-        total_sum += self.bias
-        return self.activation_func(total_sum)
     
     def predict(self, x):
         weighted_sum = np.dot(x, self.weights) + self.bias
@@ -26,7 +22,6 @@ class MultiLayerPerceptron:
         self.hidden_layers = []
         self.output_layer = []
         
-        # Initialize hidden layers
         for index, layer_size in enumerate(hidden_layers):
             hidden_layer = []
             if index == 0:
@@ -37,7 +32,6 @@ class MultiLayerPerceptron:
                     hidden_layer.append(Neuron(hidden_layers[index - 1]))
             self.hidden_layers.append(hidden_layer)
         
-        # Initialize output layer
         for _ in range(output):
             self.output_layer.append(Neuron(hidden_layers[-1]))
     
@@ -50,20 +44,27 @@ class MultiLayerPerceptron:
             print('Incorrect shape of input')
             return 
         
-        # Forward pass through hidden layers
         for layer in self.hidden_layers:
             next_x = []
             for neuron in layer:
                 next_x.append(neuron.predict(x))
             x = next_x
         
-        # Forward pass through output layer
         final_outputs = []
         for neuron in self.output_layer:
             final_outputs.append(neuron.predict(x))
         
-        # Apply softmax to the output layer's outputs
         return self.softmax(final_outputs)
+
+    def fit(self,training_set, batch_size):
+
+        predictions  = [] 
+        for i in range(batch_size):
+                predictions.append(self.predict(training_set[i][0]))  
+        
+        loss = compute_loss(predictions,training_set[:batch_size])
+        
+            
 
 
     def print(self):
