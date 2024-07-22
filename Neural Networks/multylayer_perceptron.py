@@ -1,79 +1,120 @@
+
+
 import numpy as np
 
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+# Sigmoid activation function and its derivative
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
 
-def compute_loss(predictions, y):
-    return np.mean((y - predictions) ** 2)
+def sigmoid_derivative(z):
+    return sigmoid(z) * (1 - sigmoid(z))
 
-class Neuron:
-    def __init__(self, num_inputs):
-        self.weights = np.random.randn(num_inputs)
-        self.bias = np.random.randn()
-        self.activation_func = sigmoid
+# Mean Squared Error Loss and its derivative
+def mse_loss(y_true, y_pred):
+    return np.mean((y_true - y_pred) ** 2)
+
+def mse_loss_derivative(y_true, y_pred):
+    return 2 * (y_pred - y_true) / y_true.size
+
+# Initialize the network parameters
+input_size = 2
+hidden_size = 3
+output_size = 1
+learning_rate = 0.1
+
+np.random.seed(42)  # For reproducibility
+
+# Weights and biases
+W1 = np.random.randn(input_size, hidden_size)
+b1 = np.zeros((1, hidden_size))
+W2 = np.random.randn(hidden_size, output_size)
+b2 = np.zeros((1, output_size))
+
+# Forward propagation
+def forward_propagation(X):
+    Z1 = np.dot(X, W1) + b1
+    A1 = sigmoid(Z1)
+    Z2 = np.dot(A1, W2) + b2
+    A2 = sigmoid(Z2)
+    return Z1, A1, Z2, A2
+
+# Backward propagation
+def backward_propagation(X, Y, Z1, A1, Z2, A2):
+    m = X.shape[0]
     
-    def predict(self, x):
-        weighted_sum = np.dot(x, self.weights) + self.bias
-        return self.activation_func(weighted_sum)
-
-class MultiLayerPerceptron:
-    def __init__(self, input_shape, hidden_layers, output=1):
-        self.input_shape = input_shape
-        self.hidden_layers = []
-        self.output_layer = []
-        
-        for index, layer_size in enumerate(hidden_layers):
-            hidden_layer = []
-            if index == 0:
-                for _ in range(layer_size):
-                    hidden_layer.append(Neuron(input_shape))
-            else:
-                for _ in range(layer_size):
-                    hidden_layer.append(Neuron(hidden_layers[index - 1]))
-            self.hidden_layers.append(hidden_layer)
-        
-        for _ in range(output):
-            self.output_layer.append(Neuron(hidden_layers[-1]))
+    dZ2 = mse_loss_derivative(Y, A2) * sigmoid_derivative(Z2)
+    dW2 = np.dot(A1.T, dZ2) / m
+    db2 = np.sum(dZ2, axis=0, keepdims=True) / m
     
-    def softmax(self, z):
-        exp_z = np.exp(z - np.max(z))  # Numerical stability
-        return exp_z / np.sum(exp_z)
+    dA1 = np.dot(dZ2, W2.T)
+    dZ1 = dA1 * sigmoid_derivative(Z1)
+    dW1 = np.dot(X.T, dZ1) / m
+    db1 = np.sum(dZ1, axis=0, keepdims=True) / m
+    
+    return dW1, db1, dW2, db2
 
-    def predict(self, x):
-        if len(x) != self.input_shape:
-            print('Incorrect shape of input')
-            return 
+# Update parameters
+def update_parameters(W1, b1, W2, b2, dW1, db1, dW2, db2, learning_rate):
+    W1 -= learning_rate * dW1
+    b1 -= learning_rate * db1
+    W2 -= learning_rate * dW2
+    b2 -= learning_rate * db2
+    return W1, b1, W2, b2
+
+# Training the network
+def train(X, Y, epochs, learning_rate):
+    global W1, b1, W2, b2
+    for epoch in range(epochs):
+        # Forward propagation
+        Z1, A1, Z2, A2 = forward_propagation(X)
         
-        for layer in self.hidden_layers:
-            next_x = []
-            for neuron in layer:
-                next_x.append(neuron.predict(x))
-            x = next_x
+        # Compute loss
+        loss = mse_loss(Y, A2)
         
-        final_outputs = []
-        for neuron in self.output_layer:
-            final_outputs.append(neuron.predict(x))
+        # Backward propagation
+        dW1, db1, dW2, db2 = backward_propagation(X, Y, Z1, A1, Z2, A2)
         
-        return self.softmax(final_outputs)
-
-    def fit(self,training_set, batch_size):
-
-        predictions  = [] 
-        for i in range(batch_size):
-                predictions.append(self.predict(training_set[i][0]))  
+        # Update parameters
+        W1, b1, W2, b2 = update_parameters(W1, b1, W2, b2, dW1, db1, dW2, db2, learning_rate)
         
-        loss = compute_loss(predictions,training_set[:batch_size])
-        
-            
+        if epoch % 100 == 0:
+            print(f'Epoch {epoch}, Loss: {loss}')
+
+# Example dataset (XOR problem)
+training_set = [[[0,0],[0]],
+                [[0,1],[0]],
+                [[-1,0],[0]],
+                [[0,-1],[0]],
+                [[1,1],[1]],
+                [[2,1],[1]], 
+                [[3,1],[1]],
+                [[4,1],[1]], 
+                [[0.2,0.5],[0]],      
+                [[0.2,0.5],[0]],
+                [[0.8,0.5],[0]],
+                [[0.8,0.9],[0]],
+                [[1.8,0.9],[1]], 
+                [[1.8,0.4],[0]],        
+                [[1,0.4],[0]],    
+                [[2,0.4],[0]], 
+                [[3,0.4],[0]],
+                [[3,0.1],[0]],
+                [[3,0],[0]], 
+                [[3,0.5],[1]], 
+                [[2.9,0.5],[1]], 
+                ]
+
+X = [x[0] for x in training_set ]
+Y = [y[1] for y in training_set ]
+X = np.array(X)
+Y = np.array(Y)
+
+# Train the neural network
+train(X, Y, epochs=10000, learning_rate=0.1)
+
+# Test the trained network
+_, _, _, A2 = forward_propagation(X)
+print("Predicted outputs:\n", A2)
 
 
-    def print(self):
-        for layer in self.hidden_layers:
-            print( len (layer))
-            for neuron in layer:
-                print("   ", neuron.weights)
-
-
-a = MultiLayerPerceptron(2,[2,2,2],2)
-
-print(a.predict([1,2]))
+print(W1,'\n', b1,'\n','\n', W2,'\n','\n', b2)
